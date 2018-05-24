@@ -1,4 +1,7 @@
 libduo.so.3 libduo3 #MINVER#
+ duo_alias@Base 1.9.21
+ duo_alias_file@Base 1.9.21
+ duo_alias_ldap@Base 1.9.21
  duo_check_groups@Base 1.9.6
  duo_close@Base 1.5
  duo_common_ini_handler@Base 1.9.6

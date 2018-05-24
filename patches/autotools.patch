@@ -1,7 +1,57 @@
-Index: duo-unix-1.9.19/autotools/ax_check_openssl.m4
-===================================================================
---- duo-unix-1.9.19.orig/autotools/ax_check_openssl.m4	2016-06-22 07:30:39.000000000 -0700
-+++ duo-unix-1.9.19/autotools/ax_check_openssl.m4	2016-11-16 22:49:27.411148008 -0800
+--- a/acconfig.h
++++ /dev/null
+@@ -1,21 +0,0 @@
+-@BOTTOM@
+-
+-#ifndef HAVE_ASPRINTF
+-#include <stdarg.h>
+-
+-int	asprintf(char **ret, const char *format, ...);
+-int	vasprintf(char **ret, const char *format, va_list ap);
+-#endif
+-
+-#ifndef HAVE_GETGROUPLIST
+-#include <grp.h>
+-
+-int	getgrouplist(const char *name, gid_t basegid, gid_t *groups, int *ngroups);
+-#endif
+-
+-#ifndef HAVE_STRLCPY
+-#include <sys/types.h>
+-
+-size_t	strlcpy(char *dst, const char *src, size_t size);
+-#endif
+-
+--- a/autotools/ax_check_openssl.m4
++++ b/autotools/ax_check_openssl.m4
+@@ -32,14 +32,14 @@
+ #   and this notice are preserved. This file is offered as-is, without any
+ #   warranty.
+ 
+-#serial 7
++#serial 8
+ 
+ AU_ALIAS([CHECK_SSL], [AX_CHECK_OPENSSL])
+ AC_DEFUN([AX_CHECK_OPENSSL], [
+     found=false
+-    AC_ARG_WITH(openssl,
+-        AS_HELP_STRING([--with-openssl=DIR],
+-            [root of the OpenSSL directory]),
++    AC_ARG_WITH([openssl],
++        [AS_HELP_STRING([--with-openssl=DIR],
++            [root of the OpenSSL directory])],
+         [
+             case "$withval" in
+             "" | y | ye | yes | n | no)
+@@ -51,7 +51,7 @@
+         ], [
+             # if pkg-config is installed and openssl has installed a .pc file,
+             # then use that information and don't search ssldirs
+-            AC_PATH_PROG(PKG_CONFIG, pkg-config)
++            AC_PATH_PROG([PKG_CONFIG], [pkg-config])
+             if test x"$PKG_CONFIG" != x""; then
+                 OPENSSL_LDFLAGS=`$PKG_CONFIG openssl --libs-only-L 2>/dev/null`
+                 if test $? = 0; then
 @@ -106,7 +106,7 @@
      LIBS="$OPENSSL_LIBS $LIBS"
      CPPFLAGS="$OPENSSL_INCLUDES $CPPFLAGS"
@@ -11,10 +61,8 @@ Index: duo-unix-1.9.19/autotools/ax_check_openssl.m4
          [
              AC_MSG_RESULT([yes])
              $1
-Index: duo-unix-1.9.19/autotools/ax_check_x509.m4
-===================================================================
---- duo-unix-1.9.19.orig/autotools/ax_check_x509.m4	2016-06-22 07:30:39.000000000 -0700
-+++ duo-unix-1.9.19/autotools/ax_check_x509.m4	2016-11-16 22:50:03.627660183 -0800
+--- a/autotools/ax_check_x509.m4
++++ b/autotools/ax_check_x509.m4
 @@ -22,7 +22,7 @@
      LIBS="$OPENSSL_LIBS $LIBS"
      CPPFLAGS="$OPENSSL_INCLUDES $CPPFLAGS"
@@ -31,3 +79,32 @@ Index: duo-unix-1.9.19/autotools/ax_check_x509.m4
 -])
 \ No newline at end of file
 +])
+--- a/configure.ac
++++ b/configure.ac
+@@ -83,6 +83,26 @@
+ # endif
+ #endif
+ ])
++AH_BOTTOM([
++#ifndef HAVE_ASPRINTF
++#include <stdarg.h>
++
++int     asprintf(char **ret, const char *format, ...);
++int     vasprintf(char **ret, const char *format, va_list ap);
++#endif
++
++#ifndef HAVE_GETGROUPLIST
++#include <grp.h>
++
++int     getgrouplist(const char *name, gid_t basegid, gid_t *groups, int *ngroups);
++#endif
++
++#ifndef HAVE_STRLCPY
++#include <sys/types.h>
++
++size_t  strlcpy(char *dst, const char *src, size_t size);
++#endif
++])
+ 
+ # Check headers
+ AC_HEADER_STDC

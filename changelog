@@ -1,3 +1,9 @@
+duo-unix (1.9.21-1+bx1) unstable; urgency=medium
+
+  * patches/alias.patch (add ability to alias users)
+
+ -- BX Admin <admin@bx.psu.edu>  Thu, 24 May 2018 11:14:15 -0400
+
 duo-unix (1.9.21-1) unstable; urgency=medium
 
   * New upstream release (Closes: 863831).

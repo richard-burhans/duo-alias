@@ -1,0 +1,564 @@
+--- a/lib/Makefile.am
++++ b/lib/Makefile.am
+@@ -2,15 +2,15 @@
+ 
+ lib_LTLIBRARIES = libduo.la
+ 
+-libduo_la_SOURCES = bson.h bson.c cacert.h duo.c \
+-		    http_parser.h http_parser.c https.h https.c ini.h ini.c \
+-		    urlenc.h urlenc.c util.c
+-libduo_la_LIBADD = $(top_builddir)/compat/libcompat.la @OPENSSL_LDFLAGS@ @OPENSSL_LIBS@
++libduo_la_SOURCES = alias.c alias_file.c alias_ldap.c bson.h bson.c cacert.h \
++		    duo.c http_parser.h http_parser.c https.h https.c ini.h \
++		    ini.c urlenc.h urlenc.c util.c
++libduo_la_LIBADD = $(top_builddir)/compat/libcompat.la @OPENSSL_LDFLAGS@ @OPENSSL_LIBS@ -lldap -llber
+ # http://sourceware.org/autobook/autobook/autobook_91.html
+ libduo_la_LDFLAGS = -no-undefined -version-info 3:0:0 -export-symbols-regex '^duo_'
+ 
+ libduo_la_includedir = $(includedir)
+-libduo_la_include_HEADERS = duo.h util.h shell.h
++libduo_la_include_HEADERS = alias.h alias_file.h alias_ldap.h duo.h util.h shell.h
+ 
+ notrans_dist_man3_MANS = duo.3
+ 
+--- /dev/null
++++ b/lib/alias.c
+@@ -0,0 +1,17 @@
++#include <stddef.h>
++#include "alias.h"
++#include "alias_file.h"
++#include "alias_ldap.h"
++
++char *
++duo_alias(struct duo_config *cfg, const char *username)
++{
++    char *user_alias = NULL;
++
++    user_alias = duo_alias_file(cfg, username);
++    if (user_alias == NULL) {
++        user_alias = duo_alias_ldap(cfg, username);
++    }
++
++    return (user_alias);
++}
+--- /dev/null
++++ b/lib/alias.h
+@@ -0,0 +1,9 @@
++#ifndef DUO_ALIAS_H
++#define DUO_ALIAS_H
++
++#include "util.h"
++
++char *
++duo_alias(struct duo_config *cfg, const char *username);
++
++#endif
+--- /dev/null
++++ b/lib/alias_file.c
+@@ -0,0 +1,121 @@
++#include <ctype.h>
++#include <errno.h>
++#include <fcntl.h>
++#include <stdio.h>
++#include <string.h>
++#include <sys/stat.h>
++#include <unistd.h>
++
++#include "alias_file.h"
++
++#define MAX_LINE 256
++
++static char *
++skip_space(const char *p)
++{
++    while (*p && isspace(*p)) {
++        p++;
++    }
++
++    return (char *) p;
++}
++
++static char *
++find_space(const char *p)
++{
++    while (*p && !isspace(*p)) {
++        p++;
++    }
++
++    return (char *) p;
++}
++
++static char *
++find_alias(FILE *fp, const char *username)
++{
++    char line[MAX_LINE];
++    char *p, *var, *val;
++    char *user_alias = NULL;
++
++    while (fgets(line, sizeof(line), fp) != NULL) {
++        /* find username */
++        p = skip_space(line);
++        if (*p && *p != '#') {
++            var = p;
++        } else {
++            continue;
++        }
++
++        /* terminate username */
++        p = find_space(p+1);
++        if (*p && isspace(*p)) {
++            *p = '\0';
++        } else {
++            continue;
++        }
++
++        if (strcmp(var, username) != 0) {
++            continue;
++        }
++
++        /* find alias */
++        p = skip_space(p+1);
++        if (*p && !isspace(*p)) {
++            val = p;
++        } else {
++            continue;
++        }
++
++        /* terminate alias */
++        p = find_space(p+1);
++        if (*p && isspace(*p)) {
++            *p = '\0';
++        } else {
++            continue;
++        }
++
++        user_alias = strdup(val);
++        break;
++    }
++
++    return (user_alias);
++}
++
++static char *
++get_alias(struct duo_config *cfg, const char *username)
++{
++    FILE *fp;
++    struct stat st;
++    int fd;
++    char *user_alias = NULL;
++
++    if ((fd = open(cfg->alias_file_pathname, O_RDONLY)) < 0) {
++        return (user_alias);
++    }
++
++    if (fstat(fd, &st) < 0 || (fp = fdopen(fd, "r")) == NULL) {
++        close(fd);
++        return (user_alias);
++    }
++
++    if ((st.st_mode & (S_IRGRP|S_IROTH)) != 0) {
++        fclose(fp);
++        return (user_alias);
++    }
++
++    user_alias = find_alias(fp, username);
++    fclose(fp);
++    return (user_alias);
++}
++
++char *
++duo_alias_file(struct duo_config *cfg, const char *username)
++{
++    char *user_alias = NULL;
++
++    if (cfg->alias_file_pathname != NULL) {
++        user_alias = get_alias(cfg, username);
++    }
++
++    return (user_alias);
++}
+--- /dev/null
++++ b/lib/alias_file.h
+@@ -0,0 +1,9 @@
++#ifndef DUO_ALIAS_FILE_H
++#define DUO_ALIAS_FILE_H
++
++#include "util.h"
++
++char *
++duo_alias_file(struct duo_config *cfg, const char *username);
++
++#endif
+--- /dev/null
++++ b/lib/alias_ldap.c
+@@ -0,0 +1,201 @@
++#include <ldap.h>
++#include <stdlib.h>
++#include <string.h>
++#include "alias_ldap.h"
++
++static char *
++find_percent_s(char *r)
++{
++    char *p = NULL;
++    char *q = NULL;
++    char *rv = NULL;
++
++    while (*r && *r != 's') {
++        p = q;
++        q = r++;
++    }
++
++    if (*r && q && *q == '%') {
++        if (p && *p == '%') {
++            do {
++                *q++ = *r++;
++            } while (*q);
++            rv = find_percent_s(p+2);
++        } else {
++            rv = q;
++        }
++    }
++
++    return (rv);
++}
++
++static char *
++fill_template(const char *template, const char *value)
++{
++    char *string, *new_string;
++    char *p, *q, *front, *back;
++    size_t front_len, back_len, value_len, new_string_len;
++
++    if ((string = strndup(template, strlen(template))) == NULL) {
++        return (NULL);
++    }
++
++    value_len = strlen(value);
++    p = string;
++    q = find_percent_s(p);
++
++    if (q != NULL) {
++        front = p;
++        back = q + 2;
++
++        *q = '\0';
++        front_len = strlen(front);
++        back_len = strlen(back);
++        *q = '%';
++
++        new_string_len = front_len + value_len + back_len;
++
++        if ((new_string = (char *) calloc(new_string_len + 1, sizeof(char))) == NULL) {
++            free(string);
++            return (NULL);
++        }
++
++        strncpy(new_string, front, front_len);
++        strncat(new_string, value, value_len);
++        strncat(new_string, back, back_len);
++
++        free(string);
++        string = new_string;
++    }
++
++    return (string);
++}
++
++static int
++alias_ldap_bind(LDAP **ldap, const char *uri)
++{
++    int ldap_version = LDAP_VERSION3;
++    const int ldap_timelimit = 10;
++    struct berval cred = { 0, NULL };
++
++    if (ldap_initialize(ldap, uri) != LDAP_SUCCESS) {
++        return (-1);
++    }
++
++    if (ldap_set_option(*ldap, LDAP_OPT_PROTOCOL_VERSION, &ldap_version) != LDAP_OPT_SUCCESS) {
++        return (-2);
++    }
++
++    if (ldap_set_option(*ldap, LDAP_OPT_TIMELIMIT, &ldap_timelimit) != LDAP_OPT_SUCCESS) {
++        return (-3);
++    }
++
++    if (ldap_sasl_bind_s(*ldap, NULL, LDAP_SASL_SIMPLE, &cred, NULL, NULL, NULL) != LDAP_SUCCESS) {
++        return (-4);
++    }
++
++    return (0);
++}
++
++
++static char *
++alias_ldap_search(LDAP *ldap, const char *base, struct duo_config *cfg)
++{
++    int scope_int;
++    size_t scope_len = strlen(cfg->alias_ldap_scope);
++    LDAPMessage *res;
++    LDAPMessage *entry;
++    struct berval **bervec;
++    const char *attrs[2] = { cfg->alias_ldap_attr, NULL };
++    char *user_alias = NULL;
++
++    if (strncmp("base", cfg->alias_ldap_scope, scope_len)) {
++        scope_int = LDAP_SCOPE_BASE;
++    } else if (strncmp("one", cfg->alias_ldap_scope, scope_len)) {
++        scope_int = LDAP_SCOPE_ONELEVEL;
++    } else if (strncmp("sub", cfg->alias_ldap_scope, scope_len)) {
++        scope_int = LDAP_SCOPE_SUBTREE;
++    } else {
++        goto exit;
++    }
++
++    if (ldap_search_ext_s(ldap, (char *) base, scope_int, (char *) cfg->alias_ldap_filter, (char **) attrs, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &res) != LDAP_SUCCESS) {
++        goto cleanupA;
++    }
++
++    if (ldap_count_entries(ldap, res) != 1) {
++        goto cleanupA;
++    }
++
++    if ((entry = ldap_first_entry(ldap, res)) == NULL) {
++        goto cleanupA;
++    }
++
++    if ((bervec = ldap_get_values_len(ldap, entry, cfg->alias_ldap_attr)) == NULL) {
++        goto cleanupA;
++    }
++
++    if (ldap_count_values_len(bervec) != 1) {
++        goto cleanupB;
++    }
++
++    user_alias = strndup(bervec[0]->bv_val, (size_t) bervec[0]->bv_len);
++
++cleanupB:
++    ber_bvecfree(bervec);
++cleanupA:
++    ldap_msgfree(res);
++exit:
++    return (user_alias);
++}
++
++static void
++alias_ldap_unbind(LDAP *ldap)
++{
++    ldap_unbind_ext_s(ldap, NULL, NULL);
++}
++
++static char *
++find_alias(struct duo_config *cfg, const char *base)
++{
++    LDAP *ldap;
++    char *user_alias = NULL;
++
++    if (alias_ldap_bind(&ldap, cfg->alias_ldap_uri) == 0) {
++        user_alias = alias_ldap_search(ldap, base, cfg);
++        alias_ldap_unbind(ldap);
++    }
++
++    return (user_alias);
++}
++
++static char *
++get_alias(struct duo_config *cfg, const char *username)
++{
++    char *base;
++    char *user_alias = NULL;
++
++    base = fill_template(cfg->alias_ldap_base, username);
++    if (base != NULL) {
++        user_alias = find_alias(cfg, base);
++        free(base);
++    }
++
++    return (user_alias);
++}
++
++char *
++duo_alias_ldap(struct duo_config *cfg, const char *username)
++{
++    char *user_alias = NULL;
++
++    if (cfg->alias_ldap_uri != NULL
++            && cfg->alias_ldap_base != NULL
++            && cfg->alias_ldap_scope != NULL
++            && cfg->alias_ldap_filter != NULL
++            && cfg->alias_ldap_attr != NULL) {
++        user_alias = get_alias(cfg, username);
++    }
++
++    return (user_alias);
++}
+--- /dev/null
++++ b/lib/alias_ldap.h
+@@ -0,0 +1,9 @@
++#ifndef DUO_ALIAS_LDAP_H
++#define DUO_ALIAS_LDAP_H
++
++#include "util.h"
++
++char *
++duo_alias_ldap(struct duo_config *cfg, const char *username);
++
++#endif
+--- a/lib/util.c
++++ b/lib/util.c
+@@ -60,6 +60,18 @@
+         cfg->cafile = strdup(val);
+     } else if (strcmp(name, "http_proxy") == 0) {
+         cfg->http_proxy = strdup(val);
++    } else if (strcmp(name, "alias_file_pathname") == 0 || strcmp(name, "alias_file") == 0 || strcmp(name, "aliasfile") == 0) {
++        cfg->alias_file_pathname = strdup(val);
++    } else if (strcmp(name, "alias_ldap_uri") == 0 || strcmp(name, "ldap_uri") == 0) {
++        cfg->alias_ldap_uri = strdup(val);
++    } else if (strcmp(name, "alias_ldap_base") == 0 || strcmp(name, "ldap_base") == 0) {
++        cfg->alias_ldap_base = strdup(val);
++    } else if (strcmp(name, "alias_ldap_scope") == 0 || strcmp(name, "ldap_scope") == 0) {
++        cfg->alias_ldap_scope = strdup(val);
++    } else if (strcmp(name, "alias_ldap_filter") == 0 || strcmp(name, "ldap_filter") == 0) {
++        cfg->alias_ldap_filter = strdup(val);
++    } else if (strcmp(name, "alias_ldap_attr") == 0 || strcmp(name, "ldap_attr") == 0) {
++        cfg->alias_ldap_attr = strdup(val);
+     } else if (strcmp(name, "groups") == 0 || strcmp(name, "group") == 0) {
+         if ((buf = strdup(val)) == NULL) {
+             fprintf(stderr, "Out of memory parsing groups\n");
+--- a/lib/util.h
++++ b/lib/util.h
+@@ -28,6 +28,12 @@
+     char *apihost;
+     char *cafile;
+     char *http_proxy;
++    char *alias_file_pathname;
++    char *alias_ldap_uri;
++    char *alias_ldap_base;
++    char *alias_ldap_scope;
++    char *alias_ldap_filter;
++    char *alias_ldap_attr;
+     char *groups[MAX_GROUPS];
+     int  groups_cnt;
+     int  groups_mode;
+--- a/login_duo/Makefile.am
++++ b/login_duo/Makefile.am
+@@ -1,9 +1,9 @@
+-AM_CPPFLAGS = -I$(top_srcdir)/compat -I$(top_srcdir)/lib @OPENSSL_INCLUDES@ 
++AM_CPPFLAGS = -I$(top_srcdir)/compat -I$(top_srcdir)/lib
+ 
+ sbin_PROGRAMS = login_duo
+ 
+ login_duo_SOURCES = login_duo.c
+-login_duo_LDADD = $(top_builddir)/lib/libduo.la $(top_builddir)/compat/libcompat.la @OPENSSL_LDFLAGS@ @OPENSSL_LIBS@
++login_duo_LDADD = $(top_builddir)/lib/libduo.la $(top_builddir)/compat/libcompat.la
+ 
+ notrans_dist_man8_MANS = login_duo.8
+ 
+--- a/login_duo/login_duo.c
++++ b/login_duo/login_duo.c
+@@ -25,6 +25,7 @@
+ #include <unistd.h>
+ #include <arpa/inet.h>
+ 
++#include "alias.h"
+ #include "util.h"
+ #include "duo.h"
+ #include "shell.h"
+@@ -122,6 +123,8 @@
+     duo_t *duo;
+     duo_code_t code;
+     const char *config, *p, *duouser;
++    const char *duouser_tmp = NULL;
++    char *duouser_alias = NULL;
+     const char *ip, *host = NULL;
+     char buf[64];
+     int i, flags, ret, prompts, matched;
+@@ -216,6 +219,13 @@
+         flags |= DUO_FLAG_ENV;
+     }
+ 
++    /* Check for alias */
++    duouser_alias = duo_alias(&cfg, duouser);
++    if (duouser_alias != NULL) {
++        duouser_tmp = duouser;
++        duouser = duouser_alias;
++    }
++
+     ret = EXIT_FAILURE;
+ 
+     for (i = 0; i < prompts; i++) {
+@@ -265,6 +275,11 @@
+     }
+     duo_close(duo);
+ 
++    if (duouser_alias != NULL) {
++        duouser = duouser_tmp;
++        free(duouser_alias);
++    }
++
+     return (ret);
+ }
+ 
+--- a/pam_duo/Makefile.am
++++ b/pam_duo/Makefile.am
+@@ -1,12 +1,12 @@
+ 
+-AM_CPPFLAGS = -I$(top_srcdir)/compat -I$(top_srcdir)/lib @OPENSSL_INCLUDES@
++AM_CPPFLAGS = -I$(top_srcdir)/compat -I$(top_srcdir)/lib
+ 
+ pam_libdir = @PAMDIR@
+ pam_lib_LTLIBRARIES = pam_duo.la
+ 
+ pam_duo_la_DEFS = -DDEBUG_PAM -DPAM_DEBUG @DEFS@
+ pam_duo_la_SOURCES = pam_duo.c pam_extra.h pam_extra.c
+-pam_duo_la_LIBADD = $(top_builddir)/lib/libduo.la $(top_builddir)/compat/libcompat.la @OPENSSL_LDFLAGS@ @OPENSSL_LIBS@ -lpam
++pam_duo_la_LIBADD = $(top_builddir)/lib/libduo.la $(top_builddir)/compat/libcompat.la -lpam
+ pam_duo_la_LDFLAGS = -module -no-undefined -avoid-version -shared -export-symbols-regex '^pam_sm_'
+ 
+ notrans_dist_man8_MANS = pam_duo.8
+--- a/pam_duo/pam_duo.c
++++ b/pam_duo/pam_duo.c
+@@ -55,6 +55,7 @@
+ # define duopam_const           /* Solaris, HP-UX, AIX */
+ #endif
+ 
++#include "alias.h"
+ #include "util.h"
+ #include "duo.h"
+ #include "groupaccess.h"
+@@ -119,6 +120,8 @@
+ 	 * without.
+ 	 */
+ 	duopam_const char *ip, *service, *user;
++	const char *user_tmp = NULL;
++        char *user_alias = NULL;
+ 	const char *cmd, *p, *config, *host;
+ 
+ 	int i, flags, pam_err, matched;
+@@ -230,6 +233,13 @@
+         flags |= DUO_FLAG_AUTO;
+     }
+ 
++    /* Check for alias */
++    user_alias = duo_alias(&cfg, user);
++    if (user_alias != NULL) {
++        user_tmp = user;
++        user = user_alias;
++    }
++
+     pam_err = PAM_SERVICE_ERR;
+ 
+     for (i = 0; i < cfg.prompts; i++) {
+@@ -276,6 +286,11 @@
+     }
+     duo_close(duo);
+ 
++    if (user_alias != NULL) {
++        user = user_tmp;
++        free(user_alias);
++    }
++
+     return (pam_err);
+ }
+ 

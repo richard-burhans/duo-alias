@@ -1,2 +1,3 @@
 autotools.patch
 libduo-install.patch
+alias.patch
