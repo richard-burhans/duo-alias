@@ -1,0 +1,17 @@
+Once you have installed libpam-duo or login-duo, you will need to configure
+the /etc/security/pam_duo.conf or /etc/security/login_duo.conf files
+respectively with the Duo Security keys.
+
+To test the login_duo configuration, run as a regular user:
+
+    $ login_duo echo YOU ROCK
+
+If this is successful, make sure the pam_duo configuration setting
+are valid, then you can enable the PAM module by updating the pam
+auth stack, and selecting it as the root user:
+
+    # pam-auth-update
+
+To not skip this PAM module when using SSH, either enable
+"ChallengeResponseAuthentication=yes" in /etc/ssh/sshd_config or see
+"man duo", "man pam_duo", and "man login_duo" for more details.

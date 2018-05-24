@@ -1,0 +1,3 @@
+usr/lib/*/libduo.so
+usr/lib/*/pkgconfig/*
+usr/include/*

@@ -1,0 +1,3 @@
+lib/*/security/pam_duo.so
+debian/pam-configs/* usr/share/pam-configs/
+debian/pam_duo.conf etc/security/

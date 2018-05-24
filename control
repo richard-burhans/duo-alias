@@ -1,0 +1,49 @@
+Source: duo-unix
+Priority: extra
+Maintainer: Kees Cook <kees@debian.org>
+Build-Depends: debhelper (>= 9), dh-autoreconf, libcurl4-openssl-dev,
+ libssl-dev, libpam-dev, python, chrpath
+Standards-Version: 3.9.8
+Section: libs
+Homepage: https://github.com/duosecurity/duo_unix
+
+Package: libpam-duo
+Architecture: any
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}, libduo3 (= ${binary:Version}),
+ libpam-runtime (>= 1.1.1-3~)
+Description: PAM module for Duo Security two-factor authentication
+ This provides the PAM module needed to interact with the Duo Security
+ API for handling out-of-band two-factor authentication. Also includes
+ manpage.
+
+Package: login-duo
+Section: admin
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libduo3 (= ${binary:Version}),
+ openssh-server
+Description: login wrapper for Duo Security two-factor authentication
+ This provides the login wrapper needed to interact with the Duo Security
+ API for handling out-of-band two-factor authentication, mostly designed to
+ be used along with global OpenSSH server configurations. Also includes
+ manpage and configuration.
+
+Package: libduo3
+Architecture: any
+Multi-Arch: same
+Pre-Depends: ${misc:Pre-Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Duo Security library
+ This package provides the shared library used for making use of the
+ Duo Security two-factor authentication functionality. Also includes
+ manpage.
+
+Package: libduo-dev
+Section: libdevel
+Architecture: any
+Depends: libduo3 (= ${binary:Version}), ${misc:Depends}
+Description: Duo Security development libraries and header files
+ This package provides the development libraries and header files needed to
+ link against the Duo Security library functions. Also includes the manpages
+ for library functions.

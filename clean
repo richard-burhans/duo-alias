@@ -1,0 +1,4 @@
+tests/bson/codec.pyc
+tests/bson/__init__.pyc
+tests/paths.pyc
+tests/pexpect.pyc

@@ -1,0 +1,2 @@
+# expected; this file contains a secret key used to authenticate the challenge
+libpam-duo: non-standard-file-perm etc/security/pam_duo.conf 0600 != 0644

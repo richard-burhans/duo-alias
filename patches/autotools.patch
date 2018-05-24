@@ -1,0 +1,33 @@
+Index: duo-unix-1.9.19/autotools/ax_check_openssl.m4
+===================================================================
+--- duo-unix-1.9.19.orig/autotools/ax_check_openssl.m4	2016-06-22 07:30:39.000000000 -0700
++++ duo-unix-1.9.19/autotools/ax_check_openssl.m4	2016-11-16 22:49:27.411148008 -0800
+@@ -106,7 +106,7 @@
+     LIBS="$OPENSSL_LIBS $LIBS"
+     CPPFLAGS="$OPENSSL_INCLUDES $CPPFLAGS"
+     AC_LINK_IFELSE(
+-        AC_LANG_PROGRAM([#include <openssl/ssl.h>], [SSL_new(NULL)]),
++        [AC_LANG_PROGRAM([#include <openssl/ssl.h>], [SSL_new(NULL)])],
+         [
+             AC_MSG_RESULT([yes])
+             $1
+Index: duo-unix-1.9.19/autotools/ax_check_x509.m4
+===================================================================
+--- duo-unix-1.9.19.orig/autotools/ax_check_x509.m4	2016-06-22 07:30:39.000000000 -0700
++++ duo-unix-1.9.19/autotools/ax_check_x509.m4	2016-11-16 22:50:03.627660183 -0800
+@@ -22,7 +22,7 @@
+     LIBS="$OPENSSL_LIBS $LIBS"
+     CPPFLAGS="$OPENSSL_INCLUDES $CPPFLAGS"
+     AC_RUN_IFELSE(
+-        AC_LANG_PROGRAM([void X509_TEA_set_state(int change);], [X509_TEA_set_state(0);]),
++        [AC_LANG_PROGRAM([void X509_TEA_set_state(int change);], [X509_TEA_set_state(0);])],
+         [
+             AC_MSG_RESULT([yes])
+             $1
+@@ -33,4 +33,4 @@
+     CPPFLAGS="$save_CPPFLAGS"
+     LDFLAGS="$save_LDFLAGS"
+     LIBS="$save_LIBS"
+-])
+\ No newline at end of file
++])

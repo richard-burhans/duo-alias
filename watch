@@ -1,0 +1,4 @@
+version=3
+https://www.duosecurity.com/docs/checksums \
+    https://dl.duosecurity.com/duo_unix-(.*).tar.gz \
+    debian uupdate

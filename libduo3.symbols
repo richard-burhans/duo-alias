@@ -1,0 +1,16 @@
+libduo.so.3 libduo3 #MINVER#
+ duo_check_groups@Base 1.9.6
+ duo_close@Base 1.5
+ duo_common_ini_handler@Base 1.9.6
+ duo_config_default@Base 1.9.6
+ duo_debug@Base 1.9.6
+ duo_geterr@Base 1.5
+ duo_local_ip@Base 1.9.6
+ duo_log@Base 1.9.6
+ duo_login@Base 1.5
+ duo_open@Base 1.5
+ duo_parse_config@Base 1.5
+ duo_reset_conv_funcs@Base 1.9.6
+ duo_set_boolean_option@Base 1.9.6
+ duo_set_conv_funcs@Base 1.5
+ duo_syslog@Base 1.9.6

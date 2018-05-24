@@ -1,0 +1,27 @@
+#!/usr/bin/make -f
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+
+# Enable full hardening.
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+%:
+	dh $@ --with autoreconf
+
+override_dh_auto_configure:
+	dh_auto_configure -- --with-pam=/lib/$(DEB_HOST_MULTIARCH)/security \
+			     --sysconfdir=/etc/security
+
+# Disable testsuite completely -- it is very broken on buildds
+override_dh_auto_test:
+
+override_dh_fixperms:
+	dh_fixperms
+	chmod 0600 debian/libpam-duo/etc/security/pam_duo.conf
+
+override_dh_install:
+	# Remove rpath here, since earlier breaks test runs.
+	chrpath --delete debian/tmp/usr/sbin/*
+	dh_install

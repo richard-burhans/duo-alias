@@ -1,0 +1,91 @@
+duo-unix (1.9.21-1) unstable; urgency=medium
+
+  * New upstream release (Closes: 863831).
+  * patches:
+    - drop openssl.patch (taken upstream).
+    - add libduo-install.patch (revert upstream removal).
+
+ -- Kees Cook <kees@debian.org>  Wed, 31 May 2017 11:16:05 -0700
+
+duo-unix (1.9.19-1) unstable; urgency=medium
+
+  * New upstream release (Closes: 826553).
+  * control: fixed typos (Closes: 748895).
+  * patches/openssl.patch: add openssl 1.1.0 support (Closes: 828288).
+  * copyright: fix filename globs to use .? since .[ch] isn't supported.
+  * control: bump standards version; no changes needed.
+  * rules:
+    - enable full hardening
+    - strip rpath
+
+ -- Kees Cook <kees@debian.org>  Wed, 16 Nov 2016 21:25:57 -0800
+
+duo-unix (1.9.11-1) unstable; urgency=medium
+
+  * New upstream release
+  * control: explicitly add libssl-dev to Build-Depends (Closes: 747805).
+  * patches: drop patches taken upstream:
+    - fix-manpage-dashes.patch
+    - fix-test-preload.patch
+    - fix-configure-privsep-user.patch
+
+ -- Kees Cook <kees@debian.org>  Thu, 29 May 2014 13:07:22 -0700
+
+duo-unix (1.9.6-1) unstable; urgency=low
+
+  * New upstream release.
+  * watch: updated for new upstream location.
+  * control, rules: enable autoreconf (Closes: 727363).
+  * control: bump standards version, no changes needed.
+
+ -- Kees Cook <kees@debian.org>  Mon, 16 Dec 2013 12:03:08 -0800
+
+duo-unix (1.8-1) unstable; urgency=low
+
+  * New upstream release.
+  * debian/watch: fix uupdate typo.
+  * debian/pam_duo.conf: remove minuid (Closes: 670302).
+  * debian/control: bump standards version to 3.9.3, no changes needed.
+
+ -- Kees Cook <kees@debian.org>  Sat, 16 Jun 2012 10:55:55 -0700
+
+duo-unix (1.7-3) unstable; urgency=low
+
+  * debian/copyright: fix lintian-detected format problems.
+  * debian/patches/fix-configure-privsep-user.patch: do not require that
+    privsep user exist in the build environment (Closes: 642421).
+
+ -- Kees Cook <kees@debian.org>  Wed, 23 Nov 2011 11:11:09 -0800
+
+duo-unix (1.7-2) unstable; urgency=low
+
+  * debian/rules: disable testsuite; currently very broken on buildds
+    (Closes: 640740).
+
+ -- Kees Cook <kees@debian.org>  Wed, 07 Sep 2011 09:26:34 -0700
+
+duo-unix (1.7-1) unstable; urgency=low
+
+  * New upstream release.
+    - drop fix-pam-destdir.patch, taken upstream.
+    - drop openssl-license-exception.patch, taken upstream.
+  * debian/watch: fix up new expected download location, add uupdate option.
+  * Build for multi-arch.
+  * debian/libpam-duo.lintian-overrides: explicitly allow mode 0600 config.
+  * debian/control: add python as build-dep for tests.
+  * debian/clean: remove .pyc files during clean-up.
+  * debian/patches/fix-test-preload.patch: fix testsuite to not scare /bin/sh.
+
+ -- Kees Cook <kees@debian.org>  Fri, 02 Sep 2011 13:17:20 -0700
+
+duo-unix (1.5-2) unstable; urgency=low
+
+  * debian/copyright: add missed entries, thanks to Charles Plessy.
+
+ -- Kees Cook <kees@debian.org>  Fri, 15 Apr 2011 13:16:33 -0700
+
+duo-unix (1.5-1) unstable; urgency=low
+
+  * Initial release (Closes: 622404).
+
+ -- Kees Cook <kees@debian.org>  Tue, 12 Apr 2011 16:13:44 -0700
