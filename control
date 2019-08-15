@@ -1,9 +1,9 @@
 Source: duo-unix
-Priority: extra
+Priority: optional
 Maintainer: Kees Cook <kees@debian.org>
 Build-Depends: debhelper (>= 9), dh-autoreconf, libcurl4-openssl-dev,
  libssl-dev, libpam-dev, python, chrpath
-Standards-Version: 3.9.6
+Standards-Version: 3.9.8
 Section: libs
 Homepage: https://github.com/duosecurity/duo_unix
 

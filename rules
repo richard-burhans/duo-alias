@@ -12,7 +12,8 @@ export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 
 override_dh_auto_configure:
 	dh_auto_configure -- --with-pam=/lib/$(DEB_HOST_MULTIARCH)/security \
-			     --sysconfdir=/etc/security
+			     --sysconfdir=/etc/security \
+			     --includedir=\$${prefix}/include/duo
 
 # Disable testsuite completely -- it is very broken on buildds
 override_dh_auto_test:
